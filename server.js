@@ -1,52 +1,98 @@
+require("dotenv").config()
 const express = require("express")
 const app = express()
 const PORT = 3000
-const fruits = require("./models/fruits")
+const Fruit = require("./models/fruits")
 const reactViews = require('express-react-views')
+const mongoose = require("mongoose")
 
+// ===== Connection to Database =====
+mongoose.connect(process.env.MONGO_URI,{
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+mongoose.connection.once("open",() => {
+  console.log("connected to mongo")
+})
 
+// Setup Engine
 app.set("view engine", "jsx")
 app.engine("jsx", reactViews.createEngine())
 
+// ===== Middleware =====
 app.use((req, res, next) => {
   console.log("Im running for all routes")
   console.log("1. middleware")
   next()
 })
-
 app.use(express.urlencoded({extended: false}))
 
+// I.N.D.U.C.E.S
+// Index, New, Delete, Update, Create, Edit, Show
 
-
+//INDEX
 app.get("/fruits", (req, res) => {
-  console.log("2. controller")
-  res.render("Index", {fruits: fruits})
+  // Query model to return all fruits
+  Fruit.find({}, (error, allFruits) => {
+    if (!error) {
+      res.status(200).render("fruits/Index", {
+        fruits: allFruits
+      })
+    } else {
+      res.status(400).send(error)
+    }
+  })
+
 })
 
+//NEW
 app.get("/fruits/new", (req, res) => {
-  console.log("2. controller")
-  res.render("New")
+  res.render("fruits/New")
 })
 
+// CREATE
 app.post("/fruits", (req, res) => {
-  console.log("2. controller")
   if (req.body.readyToEat === "on"){
     req.body.readyToEat = true
   } else {
     req.body.readyToEat = false
   }
-  fruits.push(req.body)
-  console.log(fruits)
-  // redirects after creating fruit, to the Index page
-  res.redirect("/fruits")
+  // This does the same thing as the if statement above but with a one line ternary
+  //req.body.readyToEat = req.body.readyToEat === 'on' ? true : false;
+
+    // Create 1st arg: the actual object we want to insert inside our database
+    // Callback 1st arg: error
+    // Callback 2nd arg: the newly created object
+  Fruit.create(req.body, (error, createdFruit) => {
+    if (!error) {
+      // redirects after creating fruit, to the Index page
+      res.status(200).redirect("/fruits")
+    } else {
+      res.status(400).send(error)
+    }
+  })
 })
 
 
 
-
-app.get("/fruits/:indexOfFruit", (req, res) => {
-  // res.send(fruits[req.params.indexOfFruit])
-  res.render("Show", {fruit: fruits[req.params.indexOfFruit]})
+//SHOW
+app.get("/fruits/:id", (req, res) => {
+    // findById 1st arg: the id of the fruit we want to find 
+    // Callback 1st arg: error
+    // Callback 2nd arg: the found fruit object
+  Fruit.findById(req.params.id, (error, foundFruit) => {
+    if (!error) {
+      res
+        .status(200)
+        .render("fruits/Show", {
+          fruit: foundFruit
+        })
+    } else {
+      res
+        .status(400)
+        .send(error)
+    }
+  })
 })
 
 
